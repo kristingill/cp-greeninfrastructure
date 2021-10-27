@@ -20,6 +20,74 @@ library(janitor)
 library(units)
 ```
 
+Read in the data
+```{r}
+buildings <- read_sf(here("data", "buildings.shp"))
+wetlands <- read_sf(here("data", "wetlands.shp"))
+wailupe <- read_sf(here("data", "wailupe.shp"))
+stormwater_structures <- read_sf(here("data", "stormwater_structures.shp"))
+conduits <- read_sf(here("data", "conduits.shp"))
+roads <- read_sf(here("data", "roads.shp")) # need to be buffered and need to create sidewalks
+parks <- read_sf(here("data", "parks.shp"))
+parking_lot <- read_sf(here("data", "parking_lot.shp"))
+flood_zones <- read_sf(here("data", "flood_zones.shp")) # need to get to look like flood_risk
+critical_habitat <- read_sf(here("data", "critical_habitat.shp"))
+```
+
+Set CRS to WGS 84
+```{r}
+buildings <- st_transform(buildings, crs = 4326) %>% 
+  st_make_valid()
+wetlands <- st_transform(wetlands, crs = 4326)
+wailupe <- st_transform(wailupe, crs = 4326)
+stormwater_structures <- st_transform(stormwater_structures, crs = 4326)
+conduits <- st_transform(conduits, crs = 4326)
+roads <- st_transform(roads, crs = 4326)
+parks <- st_transform(parks, crs = 4326)
+parking_lot <- st_transform(parking_lot, crs = 4326)
+flood_zones <- st_transform(flood_zones, crs = 4326) %>% 
+  st_make_valid()
+critical_habitat <- st_transform(critical_habitat, crs = 4326)
+```
+
+Clip to Wailupe
+```{r}
+buildings_clip <- buildings[wailupe, op = st_intersects]
+wetlands_clip <- wetlands[wailupe, op = st_intersects]
+stormwater_structures_clip <- stormwater_structures[wailupe, op = st_intersects]
+conduits_clip <- conduits[wailupe, op = st_intersects]
+roads_clip <- roads[wailupe, op = st_intersects]
+parks_clip <- parks[wailupe, op = st_intersects]
+parking_lot_clip <- parking_lot[wailupe, op = st_intersects]
+flood_zones_clip <- flood_zones[wailupe, op = st_intersects]
+critical_habitat_clip <- critical_habitat[wailupe, op = st_intersects]
+```
+
+Remove unnecessary data
+```{r}
+rm(buildings)
+rm(wetlands)
+rm(stormwater_structures)
+rm(conduits)
+rm(roads)
+rm(parks)
+rm(parking_lot)
+rm(flood_zones)
+rm(critical_habitat)
+gc()
+```
+
+Plotting the clipped data
+```{r}
+ggplot() +
+  geom_sf(data = wailupe) +
+  geom_sf(data = buildings_clip) +
+  geom_sf(data = roads_clip, col = "black") +
+  geom_sf(data = parks_clip, fill = "green") +
+  theme_minimal()
+```
+
+
 ```{r}
 # this one is not in the right location but has the percent impervious 
 inp <- read_inp(here("data", "SWMM_input.inp"))
