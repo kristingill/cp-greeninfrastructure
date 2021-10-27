@@ -1,0 +1,6 @@
+LID,Unit area (sf),Width (ft),InitSat%,Sizing,Unit cost ($/sf)
+BIOR,500,20,0,0.04,104
+PMPV,5000,50,0,0.5,34
+TRBX,60,6,0,0.004,1312
+FTPT,300,5,0,0.04,149
+TREE,60,6,0,0.004,123

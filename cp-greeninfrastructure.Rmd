@@ -1,0 +1,235 @@
+---
+title: "cp-greeninfrastructure"
+author: "Genevieve Chiong and Kristin Gill"
+date: "10/26/2021"
+output: 
+   html_document:
+     theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(swmmr)
+library(here)
+library(sf)
+library(berryFunctions)
+library(readr)
+library(lwgeom)
+library(janitor)
+library(units)
+```
+
+```{r}
+# this one is not in the right location but has the percent impervious 
+inp <- read_inp(here("data", "SWMM_input.inp"))
+
+junctions <- inp %>% 
+  junctions_to_sf()
+
+percent_imperv <- inp %>% 
+  subcatchments_to_sf()
+
+st_crs(percent_imperv) = 4326
+
+percent_imperv <- st_transform(percent_imperv, crs = 4326)
+
+percent_imperv <- st_make_valid(percent_imperv)
+```
+
+Subcatchments
+```{r}
+subcatchments <- read_sf(here("data", "subcatchments", "subcatchments_wailupe_final.shp")) %>% 
+  clean_names() %>% 
+  select(objectid_1, geometry)
+
+subcatchments <- st_transform(subcatchments, crs = 4326)
+
+subcatchments <- st_make_valid(subcatchments)
+
+plot(subcatchments)
+```
+
+LID info
+```{r}
+lid <- read_csv(here("data", "LID_info_to_edit.csv")) %>% 
+  mutate(LID = c("PRPV", "INFT", "VGSW", "nothing", "nothing")) %>% 
+  filter(LID == c("PRPV", "INFT", "VGSW"))
+
+write_csv(lid, "LID_info.csv")
+```
+
+Areas Intersect - Biornu
+```{r}
+optim_biornu <- read_sf(here("data", "biornu.shp"))
+
+optim_biornu <- st_transform(optim_biornu, crs = 4326)
+
+optim_biornu <- st_make_valid(optim_biornu)
+
+optim_biornu_intersect <-st_intersection(subcatchments, optim_biornu) %>% 
+  insertRows(c(1,2,3,38,41,43,50,64, 83:87,92,94)) %>% 
+  mutate(objectid_1 = seq.int(1:97))
+
+optim_biornu_intersect$area_biornu <- st_area(optim_biornu_intersect$geometry)
+
+biornu <- optim_biornu_intersect %>% 
+  mutate(num_gi_bior = area_biornu/14) %>% #10 feet by 15 feet = 14 square meters
+  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+
+ggplot() +
+  geom_sf(data = subcatchments, aes(fill = objectid_1))+
+  geom_sf(data = optim_biornu, col = "white") +
+  theme_minimal()
+```
+
+Areas Intersect - trbx
+```{r}
+optim_trbx <- read_sf(here("data", "trbx.shp"))
+
+optim_trbx <- st_transform(optim_trbx, crs = 4326)
+
+optim_trbx <- sf::st_make_valid(optim_trbx)
+
+optim_trbx_intersect <- st_intersection(subcatchments, optim_trbx) %>% 
+  insertRows(c(2,38,41,43,50,64, 83:87,92,94)) %>% 
+  mutate(objectid_1 = seq.int(1:97))
+
+optim_trbx_intersect$area_trbx <- st_area(optim_trbx_intersect$geometry)
+
+trbx <- optim_trbx_intersect %>% 
+  mutate(num_gi_trbx = area_trbx/13.4) %>% 
+  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+
+ggplot() +
+  geom_sf(data = subcatchments, aes(fill = objectid_1))+
+  geom_sf(data = optim_trbx, col = "white") +
+  theme_minimal()
+```
+
+Area Intersect - prpv
+```{r}
+optim_prpv <- read_sf(here("data", "prpv.shp"))
+
+optim_prpv <- st_transform(optim_prpv, crs = 4326)
+
+optim_prpv <- st_make_valid(optim_prpv)
+
+optim_prpv_intersect <- st_intersection(subcatchments, optim_prpv) %>% 
+  insertRows(c(1,2,3,38,41,43,50,64, 83:87,92,94)) %>% 
+  mutate(objectid_1 = seq.int(1:97))
+
+optim_prpv_intersect$area_prpv <- st_area(optim_prpv_intersect$geometry)
+
+prpv <- optim_prpv_intersect %>% 
+  mutate(num_gi_prpv = area_prpv/464.5) %>% 
+  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+
+ggplot() +
+  geom_sf(data = subcatchments, aes(fill = objectid_1))+
+  geom_sf(data = optim_prpv, col = "white") +
+  theme_minimal()
+```
+
+Area Intersect - vgsw
+```{r}
+optim_vgsw <- read_sf(here("data", "vgsw.shp"))
+
+optim_vgsw <- st_transform(optim_vgsw, crs = 4326)
+
+optim_vgsw <- st_make_valid(optim_vgsw)
+
+optim_vgsw_intersect <- st_intersection(subcatchments, optim_vgsw) %>% 
+  insertRows(c(2,38,41,43,50,64, 83:87,92,94)) %>% 
+  mutate(objectid_1 = seq.int(1:97))
+
+optim_vgsw_intersect$area_vgsw <- st_area(optim_vgsw_intersect$geometry)
+
+vgsw <- optim_vgsw_intersect %>% 
+  mutate(num_gi_vgsw = area_vgsw/83.6) %>% 
+  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+
+ggplot() +
+  geom_sf(data = subcatchments, aes(fill = objectid_1))+
+  geom_sf(data = optim_vgsw, col = "white") +
+  theme_minimal()
+```
+
+Area Intersect - ftpb
+```{r}
+optim_ftpb <- read_sf(here("data", "ftpd.shp"))
+
+optim_ftpb <- st_transform(optim_ftpb, crs = 4326)
+
+optim_ftpb <- st_make_valid(optim_ftpb)
+
+optim_ftpb_intersect <- st_intersection(subcatchments, optim_ftpb) %>% 
+  insertRows(c(1,2,3,38,41,43,50,64, 83:87,92,94)) %>% 
+  mutate(objectid_1 = seq.int(1:97))
+
+optim_ftpb_intersect$area_ftpb <- st_area(optim_ftpb_intersect$geometry)
+
+ftpb <- optim_ftpb_intersect %>% 
+  mutate(num_gi_ftpd = area_ftpb/83.6) %>% 
+  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+
+ggplot() +
+  geom_sf(data = subcatchments, aes(fill = objectid_1))+
+  geom_sf(data = optim_ftpb, col = "white") +
+  theme_minimal()
+```
+
+Area Intersect - inft
+```{r}
+optim_inft <- read_sf(here("data", "inft.shp"))
+
+optim_inft <- st_transform(optim_inft, crs = 4326)
+
+optim_inft <- st_make_valid(optim_inft)
+
+optim_inft_intersect <- st_intersection(subcatchments, optim_inft) %>% 
+  insertRows(c(2,5,6,8,9,13,14,15,18,19,21,22,23,26:71,75,76,77,80:87,89:96)) %>% 
+  mutate(objectid_1 = seq.int(1:97))
+
+optim_inft_intersect$area_inft <- st_area(optim_inft_intersect$geometry)
+
+inft <- optim_inft_intersect %>% 
+  mutate(num_gi_ift = area_inft/83.6) %>% 
+  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+
+ggplot() +
+  geom_sf(data = subcatchments, aes(fill = objectid_1))+
+  geom_sf(data = optim_inft, col = "white") +
+  theme_minimal()
+```
+
+Basin_info File
+```{r}
+basin_info_1 <- st_join(vgsw, prpv, left = TRUE) %>% 
+  distinct(objectid_1.x, .keep_all = TRUE)
+
+basin_info_2 <- st_join(biornu, inft) %>% 
+  distinct(objectid_1.x, .keep_all = TRUE)
+
+basin_info <- st_join(basin_info_1, basin_info_2) %>% 
+  distinct(objectid_1.x.x, .keep_all = TRUE) %>% 
+  select(!c(area_vgsw, area_inft, area_biornu, area_prpv, objectid_1.x.y, objectid_1.y.x, objectid_1.y.y)) %>%
+  rename(Name = objectid_1.x.x) %>% 
+  st_drop_geometry() %>% 
+  rename(VGSW = num_gi_vgsw) %>% 
+  rename(INFT = num_gi_ift) %>% 
+  rename(PRPV = num_gi_prpv) %>% 
+  rename(BIOR = num_gi_bior)
+
+basin_info <- merge(basin_info, percent_imperv) %>% 
+  select(Name, Area, Perc_Imperv, VGSW, INFT, PRPV, BIOR) %>% 
+  rename(Basin = Name) %>% 
+  mutate(S = "S") %>% 
+  mutate(Basin = as.character(Basin)) %>% 
+  unite(Basin, S, Basin, sep = "") %>% 
+  units::drop_units()
+
+basin_info[is.na(basin_info)] <- 0.001
+
+write_csv(basin_info, "Basin_info.csv")
+```
