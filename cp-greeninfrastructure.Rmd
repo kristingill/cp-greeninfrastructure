@@ -18,9 +18,17 @@ library(readr)
 library(lwgeom)
 library(janitor)
 library(units)
+library(prioritizr)
+library(gurobi)
 ```
 
 Read in the data, set crs to WGS 84, and clip to wailupe
+
+Maunalua Region
+```{r}
+MB <- read_sf(here("data", "outline_maunalua.shp"))
+MB <- st_transform(MB, crs = 4326)
+```
 
 Wailupe
 ```{r}
@@ -33,17 +41,19 @@ Buildings
 buildings <- read_sf(here("data", "buildings.shp"))
 buildings <- st_transform(buildings, crs = 4326) %>% 
   st_make_valid()
-buildings_clip <- buildings[wailupe, op = st_intersects]
+buildings_clip <- buildings[MB, op = st_intersects]
 
 rm(buildings)
 gc()
+
+plot(buildings_clip)
 ```
 
 Wetlands
 ```{r}
 wetlands <- read_sf(here("data", "wetlands.shp"))
 wetlands <- st_transform(wetlands, crs = 4326)
-wetlands_clip <- wetlands[wailupe, op = st_intersects]
+wetlands_clip <- wetlands[MB, op = st_intersects]
 
 rm(wetlands)
 gc()
@@ -53,7 +63,7 @@ Stormwater Structures
 ```{r}
 stormwater_structures <- read_sf(here("data", "stormwater_structures.shp"))
 stormwater_structures <- st_transform(stormwater_structures, crs = 4326)
-stormwater_structures_clip <- stormwater_structures[wailupe, op = st_intersects]
+stormwater_structures_clip <- stormwater_structures[MB, op = st_intersects]
 
 rm(stormwater_structures)
 gc()
@@ -63,7 +73,7 @@ Conduits
 ```{r}
 conduits <- read_sf(here("data", "conduits.shp"))
 conduits <- st_transform(conduits, crs = 4326)
-conduits_clip <- conduits[wailupe, op = st_intersects]
+conduits_clip <- conduits[MB, op = st_intersects]
 
 rm(conduits)
 gc()
@@ -73,7 +83,7 @@ Parks
 ```{r}
 parks <- read_sf(here("data", "parks.shp"))
 parks <- st_transform(parks, crs = 4326)
-parks_clip <- parks[wailupe, op = st_intersects]
+parks_clip <- parks[MB, op = st_intersects]
 
 rm(parks)
 gc()
@@ -84,7 +94,7 @@ Flood Zones
 flood_zones <- read_sf(here("data", "flood_zones.shp")) # need to get to look like flood_risk
 flood_zones <- st_transform(flood_zones, crs = 4326) %>% 
   st_make_valid()
-flood_zones_clip <- flood_zones[wailupe, op = st_intersects]
+flood_zones_clip <- flood_zones[MB, op = st_intersects]
 
 rm(flood_zones)
 gc()
@@ -94,7 +104,7 @@ Critical Habitat
 ```{r}
 critical_habitat <- read_sf(here("data", "critical_habitat.shp"))
 critical_habitat <- st_transform(critical_habitat, crs = 4326)
-critical_habitat_clip <- critical_habitat[wailupe, op = st_intersects]
+critical_habitat_clip <- critical_habitat[MB, op = st_intersects]
 
 rm(critical_habitat)
 gc()
@@ -114,7 +124,7 @@ Sidewalks
 ```{r}
 sidewalks <- read_sf(here("data", "sidewalks_separate.shp"))
 sidewalks <- st_transform(sidewalks, crs = 4326)
-sidewalks_clip <- sidewalks[wailupe, op = st_intersects]
+sidewalks_clip <- sidewalks[MB, op = st_intersects]
 
 rm(sidewalks)
 gc()
@@ -125,11 +135,17 @@ Parking Lots
 parking_lot <- read_sf(here("data", "parking_lot.shp"))
 st_crs(parking_lot) = 4326
 parking_lot <- st_transform(parking_lot, crs = 4326)
-parking_lot_clip <- parking_lot[wailupe, op = st_within]
+parking_lot_clip <- parking_lot[MB, op = st_within]
 
 rm(parking_lot)
 gc()
 ```
+
+Categorical Weighted Overlay
+```{r}
+
+```
+
 
 Site Locator Tool
 ```{r}
@@ -186,7 +202,7 @@ Subcatchments
 ```{r}
 subcatchments <- read_sf(here("data", "subcatchments", "subcatchments_wailupe_final.shp")) %>% 
   clean_names() %>% 
-  select(objectid_1, geometry)
+  dplyr::select(objectid_1, geometry)
 
 subcatchments <- st_transform(subcatchments, crs = 4326)
 
@@ -200,6 +216,10 @@ LID info
 lid <- read_csv(here("data", "LID_info_to_edit.csv")) %>% 
   mutate(LID = c("PRPV", "INFT", "VGSW", "nothing", "nothing")) %>% 
   filter(LID == c("PRPV", "INFT", "VGSW"))
+
+row <- c("BIOR", 500, 20, 0, 0.04, 104)
+
+lid <- rbind(lid, row)
 
 write_csv(lid, "LID_info.csv")
 ```
@@ -220,7 +240,7 @@ optim_biornu_intersect$area_biornu <- st_area(optim_biornu_intersect$geometry)
 
 biornu <- optim_biornu_intersect %>% 
   mutate(num_gi_bior = area_biornu/14) %>% #10 feet by 15 feet = 14 square meters
-  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+  dplyr::select(!c(OBJECTID, Shape_Leng, Shape_Area))
 
 ggplot() +
   geom_sf(data = subcatchments, aes(fill = objectid_1))+
@@ -244,7 +264,7 @@ optim_trbx_intersect$area_trbx <- st_area(optim_trbx_intersect$geometry)
 
 trbx <- optim_trbx_intersect %>% 
   mutate(num_gi_trbx = area_trbx/13.4) %>% 
-  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+  dplyr::select(!c(OBJECTID, Shape_Leng, Shape_Area))
 
 ggplot() +
   geom_sf(data = subcatchments, aes(fill = objectid_1))+
@@ -268,7 +288,7 @@ optim_prpv_intersect$area_prpv <- st_area(optim_prpv_intersect$geometry)
 
 prpv <- optim_prpv_intersect %>% 
   mutate(num_gi_prpv = area_prpv/464.5) %>% 
-  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+  dplyr::select(!c(OBJECTID, Shape_Leng, Shape_Area))
 
 ggplot() +
   geom_sf(data = subcatchments, aes(fill = objectid_1))+
@@ -292,7 +312,7 @@ optim_vgsw_intersect$area_vgsw <- st_area(optim_vgsw_intersect$geometry)
 
 vgsw <- optim_vgsw_intersect %>% 
   mutate(num_gi_vgsw = area_vgsw/83.6) %>% 
-  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+  dplyr::select(!c(OBJECTID, Shape_Leng, Shape_Area))
 
 ggplot() +
   geom_sf(data = subcatchments, aes(fill = objectid_1))+
@@ -316,7 +336,7 @@ optim_ftpb_intersect$area_ftpb <- st_area(optim_ftpb_intersect$geometry)
 
 ftpb <- optim_ftpb_intersect %>% 
   mutate(num_gi_ftpd = area_ftpb/83.6) %>% 
-  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+  dplyr::select(!c(OBJECTID, Shape_Leng, Shape_Area))
 
 ggplot() +
   geom_sf(data = subcatchments, aes(fill = objectid_1))+
@@ -340,7 +360,7 @@ optim_inft_intersect$area_inft <- st_area(optim_inft_intersect$geometry)
 
 inft <- optim_inft_intersect %>% 
   mutate(num_gi_ift = area_inft/83.6) %>% 
-  select(!c(OBJECTID, Shape_Leng, Shape_Area))
+  dplyr::select(!c(OBJECTID, Shape_Leng, Shape_Area))
 
 ggplot() +
   geom_sf(data = subcatchments, aes(fill = objectid_1))+
@@ -358,7 +378,7 @@ basin_info_2 <- st_join(biornu, inft) %>%
 
 basin_info <- st_join(basin_info_1, basin_info_2) %>% 
   distinct(objectid_1.x.x, .keep_all = TRUE) %>% 
-  select(!c(area_vgsw, area_inft, area_biornu, area_prpv, objectid_1.x.y, objectid_1.y.x, objectid_1.y.y)) %>%
+  dplyr::select(!c(area_vgsw, area_inft, area_biornu, area_prpv, objectid_1.x.y, objectid_1.y.x, objectid_1.y.y)) %>%
   rename(Name = objectid_1.x.x) %>% 
   st_drop_geometry() %>% 
   rename(VGSW = num_gi_vgsw) %>% 
@@ -367,7 +387,7 @@ basin_info <- st_join(basin_info_1, basin_info_2) %>%
   rename(BIOR = num_gi_bior)
 
 basin_info <- merge(basin_info, percent_imperv) %>% 
-  select(Name, Area, Perc_Imperv, VGSW, INFT, PRPV, BIOR) %>% 
+  dplyr::select(Name, Area, Perc_Imperv, VGSW, INFT, PRPV, BIOR) %>% 
   rename(Basin = Name) %>% 
   mutate(S = "S") %>% 
   mutate(Basin = as.character(Basin)) %>% 
@@ -378,3 +398,26 @@ basin_info[is.na(basin_info)] <- 0.001
 
 write_csv(basin_info, "Basin_info.csv")
 ```
+
+Prioritizr Tutorial
+```{r}
+data(sim_pu_polygons)
+
+spplot(sim_pu_polygons, "cost", main = "Planning unit cost",
+       xlim = c(-0.1, 1.1), ylim = c(-0.1, 1.1))
+
+p1 <- problem(sim_pu_polygons, features = sim_features,
+              cost_column = "cost") %>% 
+  add_min_set_objective() %>% 
+  add_relative_targets(0.15) %>% 
+  add_binary_decisions() %>% 
+  add_default_solver(gap = 0)
+
+s1 <- solve
+
+spplot(s1, "solution_1", main = "Solution", at = c(0,0.5,1.1),
+       col.regions = c("grey90", "darkgreen"),
+       xlim = c(-0.1, 1.1),
+       ylim = c(-0.1, 1.1))
+```
+

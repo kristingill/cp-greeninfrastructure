@@ -2,3 +2,4 @@ LID,Unit area (sf),Width (ft),InitSat%,Sizing,Unit cost ($/sf)
 PRPV,500,20,0,0.04,104
 INFT,5000,50,0,0.5,34
 VGSW,60,6,0,0.004,1312
+BIOR,500,20,0,0.04,104
